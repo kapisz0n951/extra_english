@@ -175,6 +175,8 @@ export default function App() {
     const [aiReviewText, setAiReviewText] = useState("");
     const [currentHintOptions, setCurrentHintOptions] = useState<string[]>([]);
     const [isWrongAnswer, setIsWrongAnswer] = useState(false);
+    const [isCooldown, setIsCooldown] = useState(false);
+    const [selectedOption, setSelectedOption] = useState<string | null>(null);
     
     // XP State
     const [xpData, setXpData] = useState<Record<string, number>>(() => {
@@ -443,8 +445,12 @@ export default function App() {
     }, [gameState.appLanguage, initSpellingQuestion, selectedDifficulty, selectedMode, playerRole, conns]);
 
     const handleAnswer = async (selected: string) => {
+        if (isCooldown) return;
         const word = wordsQueue[gameState.currentQuestionIndex] as Word | undefined;
         if (!word) return;
+
+        setIsCooldown(true);
+        setSelectedOption(selected);
 
         const isCorrect = selected.toLowerCase().trim() === word.en.toLowerCase().trim();
 
@@ -453,38 +459,44 @@ export default function App() {
             if (gameState.activeShield) {
                 setGameState(prev => ({ ...prev, activeShield: false }));
                 setSpellingInput("");
+                setIsCooldown(false);
+                setSelectedOption(null);
                 return;
             }
             setIsWrongAnswer(true);
             setTimeout(() => setIsWrongAnswer(false), 500);
 
-            // Reset progress: back to the first question
-            setGameState(prev => ({ 
-                ...prev, 
-                currentQuestionIndex: 0, 
-                score: 0,
-                mistakes: [...prev.mistakes, { word, userAnswer: selected, correctAnswer: word.en }] 
-            }));
-            
-            setSpellingInput("");
-            const firstWord = wordsQueue[0];
-            if (gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') {
-                initSpellingQuestion(firstWord);
-            }
-            
-            if (firstWord) {
-                const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== (firstWord as Word).en)).slice(0, 3);
-                setCurrentHintOptions(shuffle([
-                    (firstWord as Word).en,
-                    ...distractors.map((d: Word) => d.en)
-                ]));
-            }
+            setTimeout(() => {
+                // Reset progress: back to the first question
+                setGameState(prev => ({ 
+                    ...prev, 
+                    currentQuestionIndex: 0, 
+                    score: 0,
+                    mistakes: [...prev.mistakes, { word, userAnswer: selected, correctAnswer: word.en }] 
+                }));
+                
+                setSpellingInput("");
+                const firstWord = wordsQueue[0];
+                if (gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') {
+                    initSpellingQuestion(firstWord);
+                }
+                
+                if (firstWord) {
+                    const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== (firstWord as Word).en)).slice(0, 3);
+                    setCurrentHintOptions(shuffle([
+                        (firstWord as Word).en,
+                        ...distractors.map((d: Word) => d.en)
+                    ]));
+                }
 
-            if (playerRole === 'student') {
-                sendToHost(PeerMessageType.UPDATE_SCORE, { score: 0, progress: 0 });
-            }
+                if (playerRole === 'student') {
+                    sendToHost(PeerMessageType.UPDATE_SCORE, { score: 0, progress: 0 });
+                }
 
-            if (gameState.isBossMode) setBossTimer(t => Math.max(0, t - 2));
+                if (gameState.isBossMode) setBossTimer(t => Math.max(0, t - 2));
+                setIsCooldown(false);
+                setSelectedOption(null);
+            }, 2000);
             return;
         }
 
@@ -504,24 +516,28 @@ export default function App() {
             sendToHost(PeerMessageType.UPDATE_SCORE, { score: currentScore, progress });
         }
 
-        if (nextIdx >= wordsQueue.length) {
-            confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
-            playSound('end');
-            if (playerRole === 'student') sendToHost(PeerMessageType.GAME_OVER, {});
-            setView('summary');
-        } else {
-            setGameState(prev => ({ ...prev, currentQuestionIndex: nextIdx, score: currentScore }));
-            setSpellingInput(""); // Reset input explicitly
-            const nextWord = wordsQueue[nextIdx] as Word | undefined;
-            if (gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') initSpellingQuestion(nextWord);
-            if (nextWord) {
-                const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== (nextWord as Word).en)).slice(0, 3);
-                setCurrentHintOptions(shuffle([
-                    (nextWord as Word).en,
-                    ...distractors.map((d: Word) => d.en)
-                ]));
+        setTimeout(() => {
+            if (nextIdx >= wordsQueue.length) {
+                confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
+                playSound('end');
+                if (playerRole === 'student') sendToHost(PeerMessageType.GAME_OVER, {});
+                setView('summary');
+            } else {
+                setGameState(prev => ({ ...prev, currentQuestionIndex: nextIdx, score: currentScore }));
+                setSpellingInput(""); // Reset input explicitly
+                const nextWord = wordsQueue[nextIdx] as Word | undefined;
+                if (gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') initSpellingQuestion(nextWord);
+                if (nextWord) {
+                    const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== (nextWord as Word).en)).slice(0, 3);
+                    setCurrentHintOptions(shuffle([
+                        (nextWord as Word).en,
+                        ...distractors.map((d: Word) => d.en)
+                    ]));
+                }
             }
-        }
+            setIsCooldown(false);
+            setSelectedOption(null);
+        }, 2000);
     };
 
     const handleExitToMenu = () => {
@@ -873,13 +889,18 @@ export default function App() {
                             {(gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') ? (
                                 <div className="w-full space-y-4">
                                     <div className="flex flex-wrap justify-center gap-1 min-h-[50px]">
-                                        {(wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.en.toUpperCase().replace(/[^A-Z]/g, "").split("").map((_, i) => (
-                                            <div key={i} className={`w-8 h-10 rounded-lg border-b-4 flex items-center justify-center text-lg font-black ${spellingInput[i] ? 'bg-white border-indigo-500 text-indigo-700 shadow-sm' : 'bg-gray-100 border-gray-300 text-transparent'}`}>{spellingInput[i] || ""}</div>
-                                        ))}
+                                        {(wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.en.toUpperCase().replace(/[^A-Z]/g, "").split("").map((_, i) => {
+                                            const word = wordsQueue[gameState.currentQuestionIndex] as Word;
+                                            const isCorrect = isCooldown && spellingInput.toLowerCase() === word.en.toLowerCase();
+                                            const isWrong = isCooldown && spellingInput.toLowerCase() !== word.en.toLowerCase();
+                                            return (
+                                                <div key={i} className={`w-8 h-10 rounded-lg border-b-4 flex items-center justify-center text-lg font-black ${isCorrect ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : isWrong ? 'bg-rose-50 border-rose-500 text-rose-700' : spellingInput[i] ? 'bg-white border-indigo-500 text-indigo-700 shadow-sm' : 'bg-gray-100 border-gray-300 text-transparent'}`}>{spellingInput[i] || ""}</div>
+                                            );
+                                        })}
                                     </div>
                                     <div className="flex flex-wrap justify-center gap-2 px-2 mt-4">
                                         {spellingTiles.map((char, i) => (
-                                            <button key={i} onClick={() => {
+                                            <button key={i} disabled={isCooldown} onClick={() => {
                                                 const next = spellingInput + char;
                                                 setSpellingInput(next);
                                                 const word = wordsQueue[gameState.currentQuestionIndex] as Word | undefined;
@@ -889,19 +910,39 @@ export default function App() {
                                                         setTimeout(() => handleAnswer(next), 200);
                                                     }
                                                 }
-                                            }} className="w-11 h-11 bg-white rounded-xl border-2 border-indigo-50 flex items-center justify-center text-xl font-black shadow-md hover:border-indigo-200 active:scale-90 transition-all text-indigo-800">{char}</button>
+                                            }} className={`w-11 h-11 bg-white rounded-xl border-2 border-indigo-50 flex items-center justify-center text-xl font-black shadow-md hover:border-indigo-200 active:scale-90 transition-all text-indigo-800 ${isCooldown ? 'opacity-50 cursor-not-allowed' : ''}`}>{char}</button>
                                         ))}
                                     </div>
                                     <div className="flex gap-2 w-full mt-4">
-                                        <Button variant="danger" onClick={() => setSpellingInput(prev => prev.slice(0, -1))} className="flex-1">COFNIJ</Button>
-                                        <Button variant="secondary" onClick={() => setSpellingInput("")} className="flex-1">RESET</Button>
+                                        <Button variant="danger" onClick={() => setSpellingInput(prev => prev.slice(0, -1))} className="flex-1" disabled={isCooldown}>COFNIJ</Button>
+                                        <Button variant="secondary" onClick={() => setSpellingInput("")} className="flex-1" disabled={isCooldown}>RESET</Button>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-3 w-full max-w-sm px-4">
-                                    {currentHintOptions.map((opt, i) => (
-                                        <Button key={i} variant="secondary" className="h-16 text-lg rounded-2xl shadow-sm" onClick={() => handleAnswer(opt)}>{opt}</Button>
-                                    ))}
+                                    {currentHintOptions.map((opt, i) => {
+                                        const word = wordsQueue[gameState.currentQuestionIndex] as Word;
+                                        const isSelected = selectedOption === opt;
+                                        const isCorrect = opt.toLowerCase() === word.en.toLowerCase();
+                                        
+                                        let variant: any = "secondary";
+                                        if (isCooldown) {
+                                            if (isCorrect) variant = "success";
+                                            else if (isSelected) variant = "danger";
+                                        }
+
+                                        return (
+                                            <Button 
+                                                key={i} 
+                                                variant={variant} 
+                                                className="h-16 text-lg rounded-2xl shadow-sm" 
+                                                onClick={() => handleAnswer(opt)}
+                                                disabled={isCooldown}
+                                            >
+                                                {opt}
+                                            </Button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
