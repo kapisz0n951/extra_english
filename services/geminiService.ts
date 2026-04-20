@@ -2,8 +2,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Word, Subject, Mistake } from "../types";
 
-// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Always use const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
+const getAI = () => {
+  // Hardcoded API Key provided by user for private usage.
+  // This ensures AI features work on any hosting (like Vercel) without manual configuration.
+  const HARDCODED_KEY = "AIzaSyBlwzUAGGky6mZBvKkcu2Kd1GrmMvou7Yo";
+  const key = process.env.GEMINI_API_KEY || process.env.API_KEY || HARDCODED_KEY;
+  return new GoogleGenAI({ apiKey: key });
+};
+
+const ai = getAI();
 
 export const explainMistakes = async (mistakes: Mistake[], subject: Subject): Promise<string> => {
   if (mistakes.length === 0) return "Świetna robota! Nie popełniłeś żadnego błędu.";
@@ -17,14 +25,13 @@ export const explainMistakes = async (mistakes: Mistake[], subject: Subject): Pr
   Wyjaśnij mu krótko (max 4-5 zdań) dlaczego te formy są poprawne i daj jedną mnemotechnikę (sposób na zapamiętanie) dla najtrudniejszego z tych słów. Odpowiedz w języku polskim.`;
 
   try {
-    // Correct way to generate content with both model name and contents.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt
     });
-    // Use .text property to access extracted string output directly.
     return response.text || "Nie udało się wygenerować wyjaśnienia.";
   } catch (error) {
+    console.error("Błąd explainMistakes:", error);
     return "Mój serwer AI odpoczywa, spróbuj ponownie później!";
   }
 };
@@ -37,7 +44,10 @@ export const generateWordMnemonic = async (word: string, targetLang: string): Pr
       contents: prompt
     });
     return response.text || "";
-  } catch { return ""; }
+  } catch (error) { 
+    console.error("Błąd generateWordMnemonic:", error);
+    return ""; 
+  }
 };
 
 export const generateWordImage = async (word: string): Promise<string | null> => {
@@ -58,7 +68,10 @@ export const generateWordImage = async (word: string): Promise<string | null> =>
       }
     }
     return null;
-  } catch { return null; }
+  } catch (error) { 
+    console.error("Błąd generateWordImage:", error);
+    return null; 
+  }
 };
 
 export const generateEducationalLesson = async (topic: string, proficiency: string, lang: 'EN' | 'ES' = 'EN'): Promise<{ explanation: string, words: Word[] }> => {
@@ -105,6 +118,7 @@ export const generateEducationalLesson = async (topic: string, proficiency: stri
       words: (data.words || []).map((w: any, i: number) => ({ id: `lesson-${Date.now()}-${i}`, pl: w.pl, en: w.en }))
     };
   } catch (error) {
+    console.error("Błąd generateEducationalLesson:", error);
     return { explanation: "Wystąpił błąd.", words: [] };
   }
 };
@@ -139,6 +153,7 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
     const result = JSON.parse(response.text || "{}") as any;
     return { isValid: result.isValid ?? false, words: (result.words || []).map((w: any, i: number) => ({ id: `ai-${Date.now()}-${i}`, pl: w.pl, en: w.en })) };
   } catch (error) {
+    console.error("Błąd generateCategoryWords:", error);
     return { isValid: false, words: [] };
   }
 };
@@ -173,5 +188,8 @@ export const generateMathQuestions = async (categoryName: string): Promise<Word[
       correct_form: q.correct,
       distractors: q.distractors
     }));
-  } catch (error) { return []; }
+  } catch (error) { 
+    console.error("Błąd generateMathQuestions:", error);
+    return []; 
+  }
 };
