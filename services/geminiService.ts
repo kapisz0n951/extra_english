@@ -4,10 +4,13 @@ import { Word, Subject, Mistake } from "../types";
 
 // Always use const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 const getAI = () => {
-  // Hardcoded API Key provided by user for private usage.
-  // This ensures AI features work on any hosting (like Vercel) without manual configuration.
   const HARDCODED_KEY = "AIzaSyBlwzUAGGky6mZBvKkcu2Kd1GrmMvou7Yo";
-  const key = process.env.GEMINI_API_KEY || process.env.API_KEY || HARDCODED_KEY;
+  
+  // Vite might define these as strings "undefined" or "" during build if not set on Vercel
+  const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const isValidEnvKey = envKey && envKey !== "undefined" && envKey !== "null" && envKey.length > 5;
+  
+  const key = isValidEnvKey ? envKey : HARDCODED_KEY;
   return new GoogleGenAI({ apiKey: key });
 };
 
@@ -124,12 +127,24 @@ export const generateEducationalLesson = async (topic: string, proficiency: stri
 };
 
 export const generateCategoryWords = async (categoryName: string, subject: Subject, lang: 'EN' | 'ES' = 'EN'): Promise<{ isValid: boolean, words: Word[] }> => {
-  const systemInstruction = `15 unikalnych par słów dla: "${categoryName}" w subject: ${subject}. JSON format. "pl" polski, "en" docelowy.`;
+  const prompt = `Jesteś generatorem słówek do nauki języka. 
+  Wygeneruj dokładnie 15 unikalnych i ciekawych par słów (lub bardzo krótkich zwrotów) powiązanych z tematem: "${categoryName}".
+  Przedmiot: ${subject}. 
+  Język docelowy: ${lang === 'ES' ? 'hiszpański' : 'angielski'}.
+
+  Zwróć odpowiedź TYLKO w formacie JSON o strukturze:
+  {
+    "isValid": true,
+    "words": [
+      {"pl": "słowo po polsku", "en": "słowo po angielsku/hiszpańsku"},
+      ...
+    ]
+  }`;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: systemInstruction,
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -140,7 +155,10 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
-                properties: { pl: { type: Type.STRING }, en: { type: Type.STRING } },
+                properties: { 
+                  pl: { type: Type.STRING }, 
+                  en: { type: Type.STRING } 
+                },
                 required: ["pl", "en"]
               }
             }
@@ -149,9 +167,22 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
         }
       }
     });
-    // Cast result to any to avoid property access errors on unknown type.
-    const result = JSON.parse(response.text || "{}") as any;
-    return { isValid: result.isValid ?? false, words: (result.words || []).map((w: any, i: number) => ({ id: `ai-${Date.now()}-${i}`, pl: w.pl, en: w.en })) };
+    
+    const text = response.text || "{}";
+    const result = JSON.parse(text) as any;
+    
+    if (!result.words || !Array.isArray(result.words)) {
+        throw new Error("Invalid format from AI");
+    }
+
+    return { 
+      isValid: result.isValid ?? true, 
+      words: result.words.map((w: any, i: number) => ({ 
+        id: `ai-${Date.now()}-${i}`, 
+        pl: w.pl, 
+        en: w.en 
+      })) 
+    };
   } catch (error) {
     console.error("Błąd generateCategoryWords:", error);
     return { isValid: false, words: [] };
