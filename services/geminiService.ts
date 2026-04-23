@@ -2,19 +2,28 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Word, Subject, Mistake } from "../types";
 
-// Always use const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
-const getAI = () => {
+// Robust key retrieval for browser environments (Vite/Vercel)
+const getApiKey = () => {
   const HARDCODED_KEY = "AIzaSyBlwzUAGGky6mZBvKkcu2Kd1GrmMvou7Yo";
   
-  // Vite might define these as strings "undefined" or "" during build if not set on Vercel
-  const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-  const isValidEnvKey = envKey && envKey !== "undefined" && envKey !== "null" && envKey.length > 5;
+  let envKey: string | undefined;
+  try {
+    // Check various common injection points
+    envKey = (process.env.GEMINI_API_KEY as any) || (process.env.API_KEY as any);
+  } catch (e) {
+    // process not defined in browser
+  }
+
+  // Check if it's a placeholder string like "undefined" or empty
+  const isValid = envKey && typeof envKey === 'string' && envKey !== "undefined" && envKey !== "null" && envKey.trim().length > 10;
   
-  const key = isValidEnvKey ? envKey : HARDCODED_KEY;
-  return new GoogleGenAI({ apiKey: key });
+  if (isValid) return envKey.trim();
+  
+  console.log("Using hardcoded fallback API key");
+  return HARDCODED_KEY;
 };
 
-const ai = getAI();
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const explainMistakes = async (mistakes: Mistake[], subject: Subject): Promise<string> => {
   if (mistakes.length === 0) return "Świetna robota! Nie popełniłeś żadnego błędu.";
@@ -126,7 +135,7 @@ export const generateEducationalLesson = async (topic: string, proficiency: stri
   }
 };
 
-export const generateCategoryWords = async (categoryName: string, subject: Subject, lang: 'EN' | 'ES' = 'EN'): Promise<{ isValid: boolean, words: Word[] }> => {
+export const generateCategoryWords = async (categoryName: string, subject: Subject, lang: 'EN' | 'ES' = 'EN'): Promise<{ isValid: boolean, words: Word[], error?: string }> => {
   const prompt = `Jesteś generatorem słówek do nauki języka. 
   Wygeneruj dokładnie 15 unikalnych i ciekawych par słów (lub bardzo krótkich zwrotów) powiązanych z tematem: "${categoryName}".
   Przedmiot: ${subject}. 
@@ -183,16 +192,20 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
         en: w.en 
       })) 
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Błąd generateCategoryWords:", error);
-    return { isValid: false, words: [] };
+    return { 
+      isValid: false, 
+      words: [], 
+      error: error?.message || "Nieznany błąd AI" 
+    };
   }
 };
 
 export const generateMathQuestions = async (categoryName: string): Promise<Word[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3.1-pro-preview",
       contents: `Wygeneruj 14 pytań z matematyki: "${categoryName}". JSON format.`,
       config: {
         responseMimeType: "application/json",

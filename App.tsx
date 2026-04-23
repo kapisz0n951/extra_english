@@ -147,6 +147,27 @@ export default function App() {
     const [selectedMode, setSelectedMode] = useState<GameMode>('translation');
     const [customWordsBuffer, setCustomWordsBuffer] = useState<Word[] | null>(null);
 
+    const handleAiGenerate = useCallback((topic: string) => {
+        if (!topic || !topic.trim()) {
+            alert("Wpisz temat!");
+            return;
+        }
+        setView('loading');
+        generateCategoryWords(topic, currentSubject).then(res => {
+            if (res.isValid && res.words.length > 0) {
+                setCustomWordsBuffer(res.words);
+                setPendingChapter({ mainCat: 'words', subCat: topic, title: topic.toUpperCase(), icon: '🤖' });
+                setView('start');
+            } else {
+                alert(`Błąd AI: ${res.error || "Nie udało się wygenerować tematu."}`);
+                setView('ai-prompt');
+            }
+        }).catch(err => {
+            alert(`Krytyczny błąd AI: ${err.message}`);
+            setView('ai-prompt');
+        });
+    }, [currentSubject]);
+
     // Power-ups State
     const [powerUps, setPowerUps] = useState<PowerUps>(() => {
         const saved = localStorage.getItem('vocab_pro_powerups');
@@ -1069,26 +1090,23 @@ export default function App() {
                     <div className="flex flex-col gap-6 text-center justify-center flex-1 p-4">
                         <div className="text-6xl mb-4">🤖</div>
                         <h2 className="text-3xl font-black text-indigo-700 uppercase">Wymyśl temat</h2>
-                        <input 
-                            placeholder="Np. Podróż na Marsa..." 
-                            className="w-full p-6 text-center text-xl font-bold bg-gray-50 rounded-3xl border-4 border-indigo-100 outline-none" 
-                            onKeyDown={(e) => {
-                                if(e.key === 'Enter') {
-                                    const topic = e.currentTarget.value;
-                                    setView('loading');
-                                    generateCategoryWords(topic, currentSubject).then(res => {
-                                        if (res.isValid) {
-                                            setCustomWordsBuffer(res.words);
-                                            setPendingChapter({ mainCat: 'words', subCat: topic, title: topic.toUpperCase(), icon: '🤖' });
-                                            setView('start');
-                                        } else {
-                                            alert("Nie udało się wygenerować tematu.");
-                                            setView('ai-prompt');
-                                        }
-                                    });
-                                }
-                            }} 
-                        />
+                        <div className="flex flex-col gap-2">
+                            <input 
+                                placeholder="Np. Podróż na Marsa..." 
+                                id="ai-topic-input"
+                                className="w-full p-6 text-center text-xl font-bold bg-gray-50 rounded-3xl border-4 border-indigo-100 outline-none" 
+                                onKeyDown={(e) => {
+                                    if(e.key === 'Enter') {
+                                        const topic = e.currentTarget.value;
+                                        handleAiGenerate(topic);
+                                    }
+                                }} 
+                            />
+                            <Button onClick={() => {
+                                const input = document.getElementById('ai-topic-input') as HTMLInputElement;
+                                if (input) handleAiGenerate(input.value);
+                            }} variant="primary" className="h-16">GENERUJ</Button>
+                        </div>
                         <Button onClick={() => setView('menu')} variant="ghost">ANULUJ</Button>
                     </div>
                 )}
