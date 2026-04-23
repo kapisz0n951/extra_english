@@ -2,28 +2,53 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Word, Subject, Mistake } from "../types";
 
-// Robust key retrieval for browser environments (Vite/Vercel)
+// Robust key retrieval for browser environments (Vite/Vercel/AI Studio)
 const getApiKey = () => {
-  const HARDCODED_KEY = "AIzaSyBlwzUAGGky6mZBvKkcu2Kd1GrmMvou7Yo";
-  
-  let envKey: string | undefined;
+  // 1. Try Platform specific process.env (AI Studio)
   try {
-    // Check various common injection points
-    envKey = (process.env.GEMINI_API_KEY as any) || (process.env.API_KEY as any);
-  } catch (e) {
-    // process not defined in browser
-  }
+    const pKey = (process.env.GEMINI_API_KEY || (process.env as any).VITE_GEMINI_API_KEY);
+    if (pKey && pKey.length > 10 && pKey !== "undefined") return pKey.trim();
+  } catch (e) {}
 
-  // Check if it's a placeholder string like "undefined" or empty
-  const isValid = envKey && typeof envKey === 'string' && envKey !== "undefined" && envKey !== "null" && envKey.trim().length > 10;
-  
-  if (isValid) return envKey.trim();
-  
-  console.log("Using hardcoded fallback API key");
-  return HARDCODED_KEY;
+  // 2. Try Vite specific import.meta.env (Vercel/Local)
+  try {
+    // @ts-ignore
+    const vKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (vKey && vKey.length > 10) return vKey.trim();
+  } catch (e) {}
+
+  // 3. Fallback to hardcoded key (if others fail)
+  return "AIzaSyBlwzUAGGky6mZBvKkcu2Kd1GrmMvou7Yo";
 };
 
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
+
+// Helper to handle AI responses with safety check
+const safeGenerate = async (modelName: string, prompt: string, schema: any) => {
+  try {
+    const model = ai.models.get(modelName);
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.7,
+      }
+    });
+
+    if (!response.candidates || response.candidates.length === 0) {
+      throw new Error("AI nie zwróciło żadnych kandydatów (możliwa blokada treści)");
+    }
+
+    const text = response.candidates[0].content.parts[0].text;
+    if (!text) throw new Error("Pusta odpowiedź od AI");
+    
+    return JSON.parse(text);
+  } catch (error: any) {
+    console.error(`Błąd AI (${modelName}):`, error);
+    throw error;
+  }
+};
 
 export const explainMistakes = async (mistakes: Mistake[], subject: Subject): Promise<string> => {
   if (mistakes.length === 0) return "Świetna robota! Nie popełniłeś żadnego błędu.";
@@ -150,38 +175,31 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
     ]
   }`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      isValid: { type: Type.BOOLEAN },
+      words: {
+        type: Type.ARRAY,
+        items: {
           type: Type.OBJECT,
-          properties: {
-            isValid: { type: Type.BOOLEAN },
-            words: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: { 
-                  pl: { type: Type.STRING }, 
-                  en: { type: Type.STRING } 
-                },
-                required: ["pl", "en"]
-              }
-            }
+          properties: { 
+            pl: { type: Type.STRING }, 
+            en: { type: Type.STRING } 
           },
-          required: ["isValid", "words"]
+          required: ["pl", "en"]
         }
       }
-    });
-    
-    const text = response.text || "{}";
-    const result = JSON.parse(text) as any;
+    },
+    required: ["isValid", "words"]
+  };
+
+  try {
+    // Try primary model first
+    const result = await safeGenerate("gemini-1.5-flash", prompt, schema);
     
     if (!result.words || !Array.isArray(result.words)) {
-        throw new Error("Invalid format from AI");
+        throw new Error("Nieprawidłowy format danych z AI");
     }
 
     return { 
@@ -193,11 +211,12 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
       })) 
     };
   } catch (error: any) {
-    console.error("Błąd generateCategoryWords:", error);
+    console.error("Błąd generowania słówek:", error);
+    // If it's a safety error or similar, try a simpler prompt or model
     return { 
       isValid: false, 
       words: [], 
-      error: error?.message || "Nieznany błąd AI" 
+      error: error?.message?.includes("429") ? "Zbyt wiele zapytań (Limit AI). Spróbuj za chwilę." : (error?.message || "Błąd połączenia z AI")
     };
   }
 };

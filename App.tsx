@@ -159,7 +159,7 @@ export default function App() {
                 setPendingChapter({ mainCat: 'words', subCat: topic, title: topic.toUpperCase(), icon: '🤖' });
                 setView('start');
             } else {
-                alert(`Błąd AI: ${res.error || "Nie udało się wygenerować tematu."}`);
+                alert(`UPS! AI napotkało problem (KOD: VRO-AI-ERR): ${res.error || "Nie udało się wygenerować tematu."}`);
                 setView('ai-prompt');
             }
         }).catch(err => {
