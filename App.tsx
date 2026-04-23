@@ -16,7 +16,8 @@ import {
     ProficiencyLevel,
     Quest,
     Mistake,
-    PowerUps
+    PowerUps,
+    CustomCategory
 } from './types';
 import { MULTI_LANG_DATA, TOTAL_QUESTIONS, ENGLISH_CHAPTERS, SPANISH_CHAPTERS } from './constants';
 import { generateCategoryWords, generateMathQuestions, generateEducationalLesson, explainMistakes, generateWordImage, generateWordMnemonic } from './services/geminiService';
@@ -113,11 +114,21 @@ const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 );
 
 export default function App() {
-    const [view, setView] = useState<'menu' | 'start' | 'game' | 'summary' | 'loading' | 'ai-prompt' | 'multi-menu' | 'lobby' | 'multi-leaderboard' | 'shop' | 'ai-review'>('menu');
+    const [view, setView] = useState<'menu' | 'start' | 'game' | 'summary' | 'loading' | 'ai-prompt' | 'multi-menu' | 'lobby' | 'multi-leaderboard' | 'shop' | 'ai-review' | 'create-category'>('menu');
     const [engSubMode, setEngSubMode] = useState<'path' | 'classic'>('path');
     const [currentSubject, setCurrentSubject] = useState<Subject>(() => (localStorage.getItem('vocab_pro_current_subject') as Subject) || 'Angielski');
     
-    // Multiplayer State
+    // Custom Categories
+    const [customCategories, setCustomCategories] = useState<CustomCategory[]>(() => {
+        const saved = localStorage.getItem('vocab_pro_custom_categories');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    const [newCatDraft, setNewCatDraft] = useState<Partial<CustomCategory>>({
+        title: '',
+        icon: '📝',
+        words: [{ id: '1', pl: '', en: '' }]
+    });
     const [peer, setPeer] = useState<any>(null);
     const [conns, setConns] = useState<any[]>([]); 
     const [conn, setConn] = useState<any>(null); 
@@ -190,8 +201,9 @@ export default function App() {
         localStorage.setItem('vocab_pro_streak', streak.toString());
         localStorage.setItem('vocab_pro_last_date', new Date().toDateString());
         localStorage.setItem('vocab_pro_powerups', JSON.stringify(powerUps));
+        localStorage.setItem('vocab_pro_custom_categories', JSON.stringify(customCategories));
         if (nickname) localStorage.setItem('vpro_nick', nickname);
-    }, [xpData, currentSubject, streak, powerUps, nickname]);
+    }, [xpData, currentSubject, streak, powerUps, nickname, customCategories]);
 
     useEffect(() => {
         setGameState(prev => ({
@@ -225,16 +237,27 @@ export default function App() {
         window.speechSynthesis.speak(u);
     }, [gameState.appLanguage]);
 
-    const initSpellingQuestion = useCallback((word: Word | undefined) => {
+    const initSpellingQuestion = useCallback((word: Word | undefined, modeOverride?: GameMode) => {
         if (!word) return;
-        const cleaned = word.en.toUpperCase().replace(/[^A-ZÑÁÉÍÓÚĄĆĘŁŃÓŚŹŻ]/g, "");
+        const mode = modeOverride || gameState.mode;
+        const cleaned = word.en.toUpperCase().replace(/[^A-ZĄĆĘŁŃÓŚŹŻÑÁÉÍÓÚÜ]/g, "");
         const letters = cleaned.split("");
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ";
-        const extraCount = selectedDifficulty === 'hard' ? 4 : 2;
-        const extra = [...Array(extraCount)].map(() => alphabet[Math.floor(Math.random() * alphabet.length)]);
-        setSpellingTiles(shuffle([...letters, ...extra]));
+        
+        let Tiles: string[] = [];
+        if (mode === 'scrambled') {
+            // Anagram: only correct letters, but shuffled
+            Tiles = shuffle([...letters]);
+        } else {
+            // Spelling: correct letters + some random ones
+            const extraCount = selectedDifficulty === 'hard' ? 4 : 2;
+            const extra = [...Array(extraCount)].map(() => alphabet[Math.floor(Math.random() * alphabet.length)]);
+            Tiles = shuffle([...letters, ...extra]);
+        }
+        
+        setSpellingTiles(Tiles);
         setSpellingInput("");
-    }, [selectedDifficulty]);
+    }, [selectedDifficulty, gameState.mode]);
 
     // Multi Logic
     const handlePeerData = useCallback((c: any, data: PeerMessage) => {
@@ -428,19 +451,31 @@ export default function App() {
                 ...prev, isBossMode: isBoss, mainCategory: mainCat, currentCategory: subCat, 
                 currentQuestionIndex: 0, score: 0, isGameActive: true, mistakes: [], activeShield: false,
                 difficulty: selectedDifficulty,
-                mode: (mainCat === 'orthography' || isBoss || selectedDifficulty === 'hard') ? 'spelling' : selectedMode
+                mode: (mainCat === 'orthography' || isBoss) ? 'spelling' : selectedMode
             }));
 
-            if (mainCat === 'orthography' || isBoss || selectedDifficulty === 'hard' || selectedMode === 'spelling') {
-                initSpellingQuestion(finalWords[0]);
+            const effectiveMode = (mainCat === 'orthography' || isBoss) ? 'spelling' : selectedMode;
+
+            if (effectiveMode === 'spelling' || effectiveMode === 'scrambled' || mainCat === 'orthography' || isBoss) {
+                initSpellingQuestion(finalWords[0], effectiveMode);
             }
             setView('game');
             playSound('start');
-            const distractors = shuffle(finalWords.filter((w: Word) => w.en !== (finalWords[0] as Word).en)).slice(0, 3);
-            setCurrentHintOptions(shuffle([
-                (finalWords[0] as Word).en,
-                ...distractors.map((d: Word) => d.en)
-            ]));
+            
+            const currentWord = finalWords[0];
+            if (effectiveMode === 'reverse') {
+                const distractors = shuffle(finalWords.filter((w: Word) => w.pl !== currentWord.pl)).slice(0, 3);
+                setCurrentHintOptions(shuffle([
+                    currentWord.pl,
+                    ...distractors.map((d: Word) => d.pl)
+                ]));
+            } else {
+                const distractors = shuffle(finalWords.filter((w: Word) => w.en !== currentWord.en)).slice(0, 3);
+                setCurrentHintOptions(shuffle([
+                    currentWord.en,
+                    ...distractors.map((d: Word) => d.en)
+                ]));
+            }
         }
     }, [gameState.appLanguage, initSpellingQuestion, selectedDifficulty, selectedMode, playerRole, conns]);
 
@@ -452,7 +487,12 @@ export default function App() {
         setIsCooldown(true);
         setSelectedOption(selected);
 
-        const isCorrect = selected.toLowerCase().trim() === word.en.toLowerCase().trim();
+        const targetRaw = gameState.mode === 'reverse' ? word.pl : word.en;
+        
+        // Robust normalization for comparison
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-ząćęłńóśźżñáéíóúü]/g, "").trim();
+        
+        const isCorrect = normalize(selected) === normalize(targetRaw);
 
         if (!isCorrect) {
             playSound('incorrect');
@@ -472,21 +512,29 @@ export default function App() {
                     ...prev, 
                     currentQuestionIndex: 0, 
                     score: 0,
-                    mistakes: [...prev.mistakes, { word, userAnswer: selected, correctAnswer: word.en }] 
+                    mistakes: [...prev.mistakes, { word, userAnswer: selected, correctAnswer: targetRaw }] 
                 }));
                 
                 setSpellingInput("");
                 const firstWord = wordsQueue[0];
-                if (gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') {
+                if (gameState.mode === 'spelling' || gameState.mode === 'scrambled' || gameState.mainCategory === 'orthography') {
                     initSpellingQuestion(firstWord);
                 }
                 
                 if (firstWord) {
-                    const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== (firstWord as Word).en)).slice(0, 3);
-                    setCurrentHintOptions(shuffle([
-                        (firstWord as Word).en,
-                        ...distractors.map((d: Word) => d.en)
-                    ]));
+                    if (gameState.mode === 'reverse') {
+                        const distractors = shuffle(wordsQueue.filter((w: Word) => w.pl !== firstWord.pl)).slice(0, 3);
+                        setCurrentHintOptions(shuffle([
+                            firstWord.pl,
+                            ...distractors.map((d: Word) => d.pl)
+                        ]));
+                    } else {
+                        const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== firstWord.en)).slice(0, 3);
+                        setCurrentHintOptions(shuffle([
+                            firstWord.en,
+                            ...distractors.map((d: Word) => d.en)
+                        ]));
+                    }
                 }
 
                 if (playerRole === 'student') {
@@ -526,13 +574,21 @@ export default function App() {
                 setGameState(prev => ({ ...prev, currentQuestionIndex: nextIdx, score: currentScore }));
                 setSpellingInput(""); // Reset input explicitly
                 const nextWord = wordsQueue[nextIdx] as Word | undefined;
-                if (gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') initSpellingQuestion(nextWord);
+                if (gameState.mode === 'spelling' || gameState.mode === 'scrambled' || gameState.mainCategory === 'orthography') initSpellingQuestion(nextWord);
                 if (nextWord) {
-                    const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== (nextWord as Word).en)).slice(0, 3);
-                    setCurrentHintOptions(shuffle([
-                        (nextWord as Word).en,
-                        ...distractors.map((d: Word) => d.en)
-                    ]));
+                    if (gameState.mode === 'reverse') {
+                        const distractors = shuffle(wordsQueue.filter((w: Word) => w.pl !== nextWord.pl)).slice(0, 3);
+                        setCurrentHintOptions(shuffle([
+                            nextWord.pl,
+                            ...distractors.map((d: Word) => d.pl)
+                        ]));
+                    } else {
+                        const distractors = shuffle(wordsQueue.filter((w: Word) => w.en !== nextWord.en)).slice(0, 3);
+                        setCurrentHintOptions(shuffle([
+                            nextWord.en,
+                            ...distractors.map((d: Word) => d.en)
+                        ]));
+                    }
                 }
             }
             setIsCooldown(false);
@@ -617,6 +673,7 @@ export default function App() {
                                  startGame(gameState.mainCategory, "BOSS_CHALLENGE", true, shuffle(allWords).slice(0, 15));
                              }} className="h-16">WYZWANIE BOSSA</Button>
                              <Button variant="ai" onClick={() => setView('ai-prompt')} className="h-16">GENERUJ Z AI</Button>
+                             <Button variant="secondary" onClick={() => setView('create-category')} className="h-16 col-span-2 border-dashed border-2 border-indigo-200">➕ WŁASNA KATEGORIA</Button>
                              <Button variant="multi" onClick={() => setView('multi-menu')} className="h-16 col-span-2">GRAJ Z INNYMI</Button>
                         </div>
 
@@ -645,6 +702,26 @@ export default function App() {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-2">
+                                    {customCategories.map(cat => (
+                                        <Button key={cat.id} onClick={() => {
+                                            if (playerRole === 'student') {
+                                                alert("Jesteś w trybie Multiplayer jako uczeń. Musisz wyjść, aby grać samemu.");
+                                                return;
+                                            }
+                                            setPendingChapter({ mainCat: 'words', subCat: cat.title, title: cat.title.toUpperCase(), icon: cat.icon });
+                                            setCustomWordsBuffer(cat.words);
+                                            setView('start');
+                                        }} variant="secondary" className="h-14 flex justify-between px-6 rounded-2xl border-indigo-200 bg-indigo-50">
+                                            <span className="flex items-center gap-2"><span>{cat.icon}</span> {cat.title.toUpperCase()}</span>
+                                            <div className="flex gap-2">
+                                                <button onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setCustomCategories(prev => prev.filter(c => c.id !== cat.id));
+                                                }} className="text-rose-400 hover:text-rose-600 px-2">🗑️</button>
+                                                <span>→</span>
+                                            </div>
+                                        </Button>
+                                    ))}
                                     {Object.keys((MULTI_LANG_DATA[gameState.appLanguage] as any)[gameState.mainCategory] || {}).map(cat => (
                                         <Button key={cat} onClick={() => {
                                             if (playerRole === 'student') {
@@ -816,18 +893,30 @@ export default function App() {
                             </div>
 
                             <p className="text-[10px] font-black text-indigo-500 text-left uppercase tracking-widest mt-6">Tryb Gry</p>
-                            <div className="flex bg-gray-100 p-1 rounded-2xl w-full border-2 border-white">
+                            <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-2xl w-full border-2 border-white">
                                 <button 
                                     onClick={() => setSelectedMode('translation')} 
-                                    className={`flex-1 py-3 rounded-xl font-black text-[10px] ${selectedMode === 'translation' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+                                    className={`py-3 rounded-xl font-black text-[10px] transition-all ${selectedMode === 'translation' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
                                 >
                                     TŁUMACZENIE
                                 </button>
                                 <button 
+                                    onClick={() => setSelectedMode('reverse')} 
+                                    className={`py-3 rounded-xl font-black text-[10px] transition-all ${selectedMode === 'reverse' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+                                >
+                                    ODWROTNE
+                                </button>
+                                <button 
                                     onClick={() => setSelectedMode('spelling')} 
-                                    className={`flex-1 py-3 rounded-xl font-black text-[10px] ${selectedMode === 'spelling' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+                                    className={`py-3 rounded-xl font-black text-[10px] transition-all ${selectedMode === 'spelling' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
                                 >
                                     LITEROWANIE
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedMode('scrambled')} 
+                                    className={`py-3 rounded-xl font-black text-[10px] transition-all ${selectedMode === 'scrambled' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+                                >
+                                    ANAGRAMY
                                 </button>
                             </div>
                         </div>
@@ -882,17 +971,25 @@ export default function App() {
 
                             <div className="mb-8">
                                 <h2 className="text-4xl font-black text-indigo-900">
-                                    {(gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') ? "Posłuchaj i wpisz..." : (wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.pl}
+                                    {(gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') 
+                                        ? "Posłuchaj i wpisz..." 
+                                        : (gameState.mode === 'scrambled') 
+                                            ? `Ułóż słowo: ${(wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.pl}`
+                                            : (gameState.mode === 'reverse')
+                                                ? (wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.en
+                                                : (wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.pl
+                                    }
                                 </h2>
                             </div>
                             
-                            {(gameState.mode === 'spelling' || gameState.mainCategory === 'orthography') ? (
+                            {(gameState.mode === 'spelling' || gameState.mode === 'scrambled' || gameState.mainCategory === 'orthography') ? (
                                 <div className="w-full space-y-4">
                                     <div className="flex flex-wrap justify-center gap-1 min-h-[50px]">
-                                        {(wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.en.toUpperCase().replace(/[^A-Z]/g, "").split("").map((_, i) => {
+                                        {(wordsQueue[gameState.currentQuestionIndex] as Word | undefined)?.en.toUpperCase().replace(/[^A-ZĄĆĘŁŃÓŚŹŻÑÁÉÍÓÚÜ]/g, "").split("").map((_, i) => {
                                             const word = wordsQueue[gameState.currentQuestionIndex] as Word;
-                                            const isCorrect = isCooldown && spellingInput.toLowerCase() === word.en.toLowerCase();
-                                            const isWrong = isCooldown && spellingInput.toLowerCase() !== word.en.toLowerCase();
+                                            const targetStr = word.en.toUpperCase().replace(/[^A-ZĄĆĘŁŃÓŚŹŻÑÁÉÍÓÚÜ]/g, "");
+                                            const isCorrect = isCooldown && spellingInput.toUpperCase() === targetStr;
+                                            const isWrong = isCooldown && spellingInput.toUpperCase() !== targetStr;
                                             return (
                                                 <div key={i} className={`w-8 h-10 rounded-lg border-b-4 flex items-center justify-center text-lg font-black ${isCorrect ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : isWrong ? 'bg-rose-50 border-rose-500 text-rose-700' : spellingInput[i] ? 'bg-white border-indigo-500 text-indigo-700 shadow-sm' : 'bg-gray-100 border-gray-300 text-transparent'}`}>{spellingInput[i] || ""}</div>
                                             );
@@ -905,7 +1002,7 @@ export default function App() {
                                                 setSpellingInput(next);
                                                 const word = wordsQueue[gameState.currentQuestionIndex] as Word | undefined;
                                                 if (word) {
-                                                    const target = word.en.toUpperCase().replace(/[^A-Z]/g, "");
+                                                    const target = word.en.toUpperCase().replace(/[^A-ZĄĆĘŁŃÓŚŹŻÑÁÉÍÓÚÜ]/g, "");
                                                     if (next.length === target.length) {
                                                         setTimeout(() => handleAnswer(next), 200);
                                                     }
@@ -1019,6 +1116,89 @@ export default function App() {
                             </div>
                          </div>
                          <Button onClick={() => setView('menu')} variant="secondary">POWRÓT</Button>
+                    </div>
+                )}
+
+                {view === 'create-category' && (
+                    <div className="flex flex-col gap-4 flex-1 py-4 overflow-hidden">
+                        <div className="text-center px-4">
+                            <h2 className="text-2xl font-black text-indigo-700 uppercase">Nowa Kategoria</h2>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto px-4 space-y-4 scrollbar-hide">
+                            <div className="flex gap-2">
+                                <input 
+                                    placeholder="Ikona (np. 🍎)" 
+                                    className="w-20 p-4 rounded-2xl border-2 border-gray-100 font-bold text-center text-2xl outline-none"
+                                    value={newCatDraft.icon}
+                                    onChange={(e) => setNewCatDraft({...newCatDraft, icon: e.target.value})}
+                                />
+                                <input 
+                                    placeholder="Nazwa kategorii..." 
+                                    className="flex-1 p-4 rounded-2xl border-2 border-gray-100 font-bold outline-none"
+                                    value={newCatDraft.title}
+                                    onChange={(e) => setNewCatDraft({...newCatDraft, title: e.target.value})}
+                                />
+                            </div>
+
+                            <p className="font-black text-[10px] text-gray-400 uppercase">Słówka (PL - {currentSubject === 'Angielski' ? 'EN' : 'ES'})</p>
+                            
+                            <div className="space-y-2">
+                                {newCatDraft.words?.map((w, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center">
+                                        <input 
+                                            placeholder="PL" 
+                                            className="flex-1 p-3 rounded-xl border-2 border-gray-100 text-sm font-bold outline-none"
+                                            value={w.pl}
+                                            onChange={(e) => {
+                                                const newWords = [...(newCatDraft.words || [])];
+                                                newWords[idx].pl = e.target.value;
+                                                setNewCatDraft({...newCatDraft, words: newWords});
+                                            }}
+                                        />
+                                        <input 
+                                            placeholder={currentSubject === 'Angielski' ? 'EN' : 'ES'} 
+                                            className="flex-1 p-3 rounded-xl border-2 border-gray-100 text-sm font-bold outline-none"
+                                            value={w.en}
+                                            onChange={(e) => {
+                                                const newWords = [...(newCatDraft.words || [])];
+                                                newWords[idx].en = e.target.value;
+                                                setNewCatDraft({...newCatDraft, words: newWords});
+                                            }}
+                                        />
+                                        <button onClick={() => {
+                                            const newWords = newCatDraft.words?.filter((_, i) => i !== idx);
+                                            setNewCatDraft({...newCatDraft, words: newWords});
+                                        }} className="text-gray-300 hover:text-rose-500">✕</button>
+                                    </div>
+                                ))}
+                                <Button variant="secondary" className="w-full py-2 border-dashed" onClick={() => {
+                                    setNewCatDraft({
+                                        ...newCatDraft, 
+                                        words: [...(newCatDraft.words || []), { id: Date.now().toString(), pl: '', en: '' }]
+                                    });
+                                }}>+ DODAJ SŁOWO</Button>
+                            </div>
+                        </div>
+
+                        <div className="px-4 pt-4 flex flex-col gap-2">
+                            <Button variant="primary" onClick={() => {
+                                if (!newCatDraft.title?.trim()) { alert("Nazwa jest wymagana!"); return; }
+                                if ((newCatDraft.words?.length || 0) < 2) { alert("Dodaj przynajmniej 2 słówka!"); return; }
+                                
+                                const finalCat: CustomCategory = {
+                                    id: Date.now().toString(),
+                                    title: newCatDraft.title,
+                                    icon: newCatDraft.icon || '📝',
+                                    words: (newCatDraft.words || []).filter(w => w.pl.trim() && w.en.trim())
+                                };
+
+                                setCustomCategories(prev => [...prev, finalCat]);
+                                setNewCatDraft({ title: '', icon: '📝', words: [{ id: '1', pl: '', en: '' }] });
+                                setView('menu');
+                            }} className="w-full">ZAPISZ KATEGORIĘ</Button>
+                            <Button variant="ghost" onClick={() => setView('menu')}>ANULUJ</Button>
+                        </div>
                     </div>
                 )}
 

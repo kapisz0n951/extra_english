@@ -15,7 +15,7 @@ export const MULTI_LANG_DATA: Record<AppLanguage, Partial<Record<MainCategory, R
             pronouns: generateMockWords('en_pr', ['Ja', 'Ty', 'On', 'Ona', 'Ono', 'My', 'Wy', 'Oni', 'Mój', 'Twój'], ['I', 'You', 'He', 'She', 'It', 'We', 'You', 'They', 'My', 'Your']),
             animals: generateMockWords('en_an', ['Pies', 'Kot', 'Słoń', 'Lew', 'Tygrys', 'Żyrafa', 'Małpa', 'Zebra', 'Królik', 'Wilk', 'Niedźwiedź', 'Wąż', 'Ptak', 'Ryba', 'Koń'], ['Dog', 'Cat', 'Elephant', 'Lion', 'Tiger', 'Giraffe', 'Monkey', 'Zebra', 'Rabbit', 'Wolf', 'Bear', 'Snake', 'Bird', 'Fish', 'Horse']),
             food: generateMockWords('en_fo', ['Chleb', 'Jabłko', 'Woda', 'Ser', 'Mleko', 'Masło', 'Jajko', 'Mięso', 'Ryż', 'Zupa', 'Ciasto', 'Sok', 'Kawa', 'Herbata', 'Cukier'], ['Bread', 'Apple', 'Water', 'Cheese', 'Milk', 'Butter', 'Egg', 'Meat', 'Rice', 'Soup', 'Cake', 'Juice', 'Coffee', 'Tea', 'Sugar']),
-            body: generateMockWords('en_bo', ['Głowa', 'Ręka', 'Noga', 'Oko', 'Ucho', 'Nos', 'Usta', 'Serce', 'Plecy', 'Brzuch', 'Palec', 'Kolano', 'Stopa', 'Szyja', 'Ramię'], ['Head', 'Hand', 'Leg', 'Eye', 'Ear', 'Noze', 'Mouth', 'Heart', 'Back', 'Stomach', 'Finger', 'Knee', 'Foot', 'Neck', 'Shoulder']),
+            body: generateMockWords('en_bo', ['Głowa', 'Ręka', 'Noga', 'Oko', 'Ucho', 'Nos', 'Usta', 'Serce', 'Plecy', 'Brzuch', 'Palec', 'Kolano', 'Stopa', 'Szyja', 'Ramię'], ['Head', 'Hand', 'Leg', 'Eye', 'Ear', 'Nose', 'Mouth', 'Heart', 'Back', 'Stomach', 'Finger', 'Knee', 'Foot', 'Neck', 'Shoulder']),
             colors: generateMockWords('en_co', ['Czerwony', 'Niebieski', 'Zielony', 'Żółty', 'Czarny', 'Biały', 'Różowy', 'Pomarańczowy', 'Brązowy', 'Szary', 'Fioletowy', 'Złoty'], ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Pink', 'Orange', 'Brown', 'Grey', 'Purple', 'Gold']),
             family: generateMockWords('en_fa', ['Mama', 'Tata', 'Syn', 'Córka', 'Brat', 'Siostra', 'Babcia', 'Dziadek', 'Wujek', 'Ciocia', 'Kuzyn', 'Mąż', 'Żona'], ['Mother', 'Father', 'Son', 'Daughter', 'Brother', 'Sister', 'Grandmother', 'Grandfather', 'Uncle', 'Aunt', 'Cousin', 'Husband', 'Wife']),
             numbers: generateMockWords('en_nu', ['Jeden', 'Dwa', 'Trzy', 'Cztery', 'Pięć', 'Sześć', 'Siedem', 'Osiem', 'Dziewięć', 'Dziesięć', 'Sto', 'Tysiąc'], ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Hundred', 'Thousand']),
@@ -32,6 +32,16 @@ export const MULTI_LANG_DATA: Record<AppLanguage, Partial<Record<MainCategory, R
             shopping: generateMockWords('en_sh', ['Cena', 'Pieniądze', 'Karta', 'Gotówka', 'Torba', 'Promocja', 'Kupować', 'Sprzedawać', 'Paragon', 'Koszyk'], ['Price', 'Money', 'Card', 'Cash', 'Bag', 'Sale', 'Buy', 'Sell', 'Receipt', 'Basket']),
             hobbies: generateMockWords('en_hb', ['Sport', 'Muzyka', 'Taniec', 'Czytanie', 'Gry', 'Podróże', 'Gotowanie', 'Rysowanie', 'Fotografia', 'Film'], ['Sport', 'Music', 'Dance', 'Reading', 'Games', 'Travel', 'Cooking', 'Drawing', 'Photography', 'Movie']),
             tech: generateMockWords('en_te', ['Komputer', 'Telefon', 'Internet', 'Ekran', 'Myszka', 'Klawiatura', 'Aplikacja', 'Hasło', 'Strona', 'Dane'], ['Computer', 'Phone', 'Internet', 'Screen', 'Mouse', 'Keyboard', 'Application', 'Password', 'Website', 'Data']),
+            instruments: generateMockWords('en_in', ['Gitara', 'Pianino', 'Perkusja', 'Skrzypce', 'Flet', 'Trąbka', 'Saksofon', 'Harfa', 'Wiolonczela', 'Organy'], ['Guitar', 'Piano', 'Drums', 'Violin', 'Flute', 'Trumpet', 'Saxophone', 'Harp', 'Cello', 'Organ']),
+            school: generateMockWords('en_sc', ['Szkoła', 'Klasa', 'Ławka', 'Tablica', 'Książka', 'Zeszyt', 'Ołówek', 'Długopis', 'Plecak', 'Nauczyciel'], ['School', 'Classroom', 'Desk', 'Whiteboard', 'Book', 'Notebook', 'Pencil', 'Pen', 'Backpack', 'Teacher']),
+            space: generateMockWords('en_sp', ['Kosmos', 'Planeta', 'Gwiazda', 'Księżyc', 'Słońce', 'Rakieta', 'Astronauta', 'Galaktyka', 'Kometa', 'Teleskop'], ['Space', 'Planet', 'Star', 'Moon', 'Sun', 'Rocket', 'Astronaut', 'Galaxy', 'Comet', 'Telescope']),
+            sports: generateMockWords('en_sr', ['Piłka nożna', 'Koszykówka', 'Siatkówka', 'Tenis', 'Pływanie', 'Bieganie', 'Kolarstwo', 'Narty', 'Boks', 'Golf'], ['Football', 'Basketball', 'Volleyball', 'Tennis', 'Swimming', 'Running', 'Cycling', 'Skiing', 'Boxing', 'Golf']),
+            garden: generateMockWords('en_ga', ['Ogród', 'Kwiat', 'Drzewo', 'Trawa', 'Płot', 'Brama', 'Ławka', 'Konewka', 'Grabie', 'Łopata'], ['Garden', 'Flower', 'Tree', 'Grass', 'Fence', 'Gate', 'Bench', 'Watering can', 'Rake', 'Shovel']),
+            furniture: generateMockWords('en_fu', ['Stół', 'Krzesło', 'Łóżko', 'Szafa', 'Kanapa', 'Fotel', 'Półka', 'Biurko', 'Lampa', 'Dywan'], ['Table', 'Chair', 'Bed', 'Wardrobe', 'Sofa', 'Armchair', 'Shelf', 'Desk', 'Lamp', 'Carpet']),
+            materials: generateMockWords('en_mt', ['Drewno', 'Metal', 'Plastik', 'Szkło', 'Papier', 'Kamień', 'Guma', 'Skóra', 'Bawełna', 'Złoto'], ['Wood', 'Metal', 'Plastic', 'Glass', 'Paper', 'Stone', 'Rubber', 'Leather', 'Cotton', 'Gold']),
+            shapes: generateMockWords('en_sh', ['Koło', 'Kwadrat', 'Trójkąt', 'Prostokąt', 'Gwiazda', 'Serce', 'Linia', 'Punkt', 'Kula', 'Kostka'], ['Circle', 'Square', 'Triangle', 'Rectangle', 'Star', 'Heart', 'Line', 'Point', 'Sphere', 'Cube']),
+            time: generateMockWords('en_tm', ['Sekunda', 'Minuta', 'Godzina', 'Dzień', 'Tydzień', 'Miesiąc', 'Rok', 'Wiek', 'Zegar', 'Kalendarz'], ['Second', 'Minute', 'Hour', 'Day', 'Week', 'Month', 'Year', 'Century', 'Clock', 'Calendar']),
+            vehicles: generateMockWords('en_vh', ['Rower', 'Motocykl', 'Samochód', 'Autobus', 'Tramwaj', 'Pociąg', 'Ciężarówka', 'Traktor', 'Taxi', 'Metro'], ['Bicycle', 'Motorcycle', 'Car', 'Bus', 'Tram', 'Train', 'Truck', 'Tractor', 'Taxi', 'Subway']),
         },
         phrases: {
             greetings: [
@@ -64,6 +74,16 @@ export const MULTI_LANG_DATA: Record<AppLanguage, Partial<Record<MainCategory, R
             shopping: generateMockWords('es_sh', ['Cena', 'Pieniądze', 'Karta', 'Gotówka', 'Torba', 'Promocja', 'Kupować', 'Sprzedawać', 'Paragon', 'Koszyk'], ['Precio', 'Dinero', 'Tarjeta', 'Efectivo', 'Bolsa', 'Venta', 'Comprar', 'Vender', 'Recibo', 'Cesta']),
             hobbies: generateMockWords('es_hb', ['Sport', 'Muzyka', 'Taniec', 'Czytanie', 'Gry', 'Podróże', 'Gotowanie', 'Rysowanie', 'Fotografia', 'Film'], ['Deporte', 'Música', 'Baile', 'Lectura', 'Juegos', 'Viajes', 'Cocina', 'Dibujo', 'Fotografía', 'Película']),
             tech: generateMockWords('es_te', ['Komputer', 'Telefon', 'Internet', 'Ekran', 'Myszka', 'Klawiatura', 'Aplikacja', 'Hasło', 'Strona', 'Dane'], ['Ordenador', 'Teléfono', 'Internet', 'Pantalla', 'Ratón', 'Teclado', 'Aplicación', 'Contraseña', 'Página', 'Datos']),
+            instruments: generateMockWords('es_in', ['Gitara', 'Pianino', 'Perkusja', 'Skrzypce', 'Flet', 'Trąbka', 'Saksofon', 'Harfa', 'Wiolonczela', 'Organy'], ['Guitarra', 'Piano', 'Batería', 'Violín', 'Flauta', 'Trompeta', 'Saxofón', 'Arpa', 'Violonchelo', 'Órgano']),
+            school: generateMockWords('es_sc', ['Szkoła', 'Klasa', 'Ławka', 'Tablica', 'Książka', 'Zeszyt', 'Ołówek', 'Długopis', 'Plecak', 'Nauczyciel'], ['Escuela', 'Aula', 'Pupitre', 'Pizarra', 'Libro', 'Cuaderno', 'Lápiz', 'Bolígrafo', 'Mochila', 'Profesor']),
+            space: generateMockWords('es_sp', ['Kosmos', 'Planeta', 'Gwiazda', 'Księżyc', 'Słońce', 'Rakieta', 'Astronauta', 'Galaktyka', 'Kometa', 'Teleskop'], ['Espacio', 'Planeta', 'Estrella', 'Luna', 'Sol', 'Cohete', 'Astronauta', 'Galaxia', 'Cometa', 'Telescopio']),
+            sports: generateMockWords('es_sr', ['Piłka nożna', 'Koszykówka', 'Siatkówka', 'Tenis', 'Pływanie', 'Bieganie', 'Kolarstwo', 'Narty', 'Boks', 'Golf'], ['Fútbol', 'Baloncesto', 'Voleibol', 'Tenis', 'Natación', 'Correr', 'Ciclismo', 'Esquí', 'Boxeo', 'Golf']),
+            garden: generateMockWords('es_ga', ['Ogród', 'Kwiat', 'Drzewo', 'Trawa', 'Płot', 'Brama', 'Ławka', 'Konewka', 'Grabie', 'Łopata'], ['Jardín', 'Flor', 'Árbol', 'Hierba', 'Valla', 'Puerta', 'Banco', 'Regadera', 'Rastrillo', 'Pala']),
+            furniture: generateMockWords('es_fu', ['Stół', 'Krzesło', 'Łóżko', 'Szafa', 'Kanapa', 'Fotel', 'Półka', 'Biurko', 'Lampa', 'Dywan'], ['Mesa', 'Silla', 'Cama', 'Armario', 'Sofá', 'Sillón', 'Estante', 'Escritorio', 'Lámpara', 'Alfombra']),
+            materials: generateMockWords('es_mt', ['Drewno', 'Metal', 'Plastik', 'Szkło', 'Papier', 'Kamień', 'Guma', 'Skóra', 'Bawełna', 'Złoto'], ['Madera', 'Metal', 'Plástico', 'Vidrio', 'Papel', 'Piedra', 'Caucho', 'Cuero', 'Algodón', 'Oro']),
+            shapes: generateMockWords('es_sh', ['Koło', 'Kwadrat', 'Trójkąt', 'Prostokąt', 'Gwiazda', 'Serce', 'Linia', 'Punkt', 'Kula', 'Kostka'], ['Círculo', 'Cuadrado', 'Triángulo', 'Rectángulo', 'Estrella', 'Corazón', 'Línea', 'Punto', 'Esfera', 'Cubo']),
+            time: generateMockWords('es_tm', ['Sekunda', 'Minuta', 'Godzina', 'Dzień', 'Tydzień', 'Miesiąc', 'Rok', 'Wiek', 'Zegar', 'Kalendarz'], ['Segundo', 'Minuto', 'Hora', 'Día', 'Semana', 'Mes', 'Año', 'Siglo', 'Reloj', 'Calendario']),
+            vehicles: generateMockWords('es_vh', ['Rower', 'Motocykl', 'Samochód', 'Autobus', 'Tramwaj', 'Pociąg', 'Ciężarówka', 'Traktor', 'Taxi', 'Metro'], ['Bicicleta', 'Motocicleta', 'Coche', 'Autobús', 'Tranvía', 'Tren', 'Camión', 'Tractor', 'Taxi', 'Metro']),
         },
         phrases: {
             greetings: [
@@ -98,6 +118,16 @@ export const ENGLISH_CHAPTERS: Chapter[] = [
     { id: 'en_19', title: 'Zakupy', category: 'shopping', mainCategory: 'words', requiredLevel: 1, icon: '🛍️', difficulty: 'normal' },
     { id: 'en_20', title: 'Hobby', category: 'hobbies', mainCategory: 'words', requiredLevel: 1, icon: '🎸', difficulty: 'normal' },
     { id: 'en_21', title: 'Technologia', category: 'tech', mainCategory: 'words', requiredLevel: 1, icon: '💻', difficulty: 'hard' },
+    { id: 'en_22', title: 'Instrumenty', category: 'instruments', mainCategory: 'words', requiredLevel: 1, icon: '🎸', difficulty: 'normal' },
+    { id: 'en_23', title: 'Szkoła', category: 'school', mainCategory: 'words', requiredLevel: 1, icon: '🏫', difficulty: 'easy' },
+    { id: 'en_24', title: 'Kosmos', category: 'space', mainCategory: 'words', requiredLevel: 1, icon: '🚀', difficulty: 'hard' },
+    { id: 'en_25', title: 'Sport', category: 'sports', mainCategory: 'words', requiredLevel: 1, icon: '⚽', difficulty: 'normal' },
+    { id: 'en_26', title: 'Ogród', category: 'garden', mainCategory: 'words', requiredLevel: 1, icon: '🌻', difficulty: 'easy' },
+    { id: 'en_27', title: 'Meble', category: 'furniture', mainCategory: 'words', requiredLevel: 1, icon: '🛋️', difficulty: 'easy' },
+    { id: 'en_28', title: 'Materiały', category: 'materials', mainCategory: 'words', requiredLevel: 1, icon: '💎', difficulty: 'normal' },
+    { id: 'en_29', title: 'Kształty', category: 'shapes', mainCategory: 'words', requiredLevel: 1, icon: '📐', difficulty: 'easy' },
+    { id: 'en_30', title: 'Czas', category: 'time', mainCategory: 'words', requiredLevel: 1, icon: '⌛', difficulty: 'normal' },
+    { id: 'en_31', title: 'Pojazdy', category: 'vehicles', mainCategory: 'words', requiredLevel: 1, icon: '🚗', difficulty: 'easy' },
 ];
 
 export const SPANISH_CHAPTERS: Chapter[] = [
@@ -122,6 +152,16 @@ export const SPANISH_CHAPTERS: Chapter[] = [
     { id: 'es_19', title: 'Zakupy', category: 'shopping', mainCategory: 'words', requiredLevel: 1, icon: '💳', difficulty: 'normal' },
     { id: 'es_20', title: 'Hobby', category: 'hobbies', mainCategory: 'words', requiredLevel: 1, icon: '💃', difficulty: 'normal' },
     { id: 'es_21', title: 'Technologia', category: 'tech', mainCategory: 'words', requiredLevel: 1, icon: '📱', difficulty: 'hard' },
+    { id: 'es_22', title: 'Instrumenty', category: 'instruments', mainCategory: 'words', requiredLevel: 1, icon: '🎻', difficulty: 'normal' },
+    { id: 'es_23', title: 'Szkoła', category: 'school', mainCategory: 'words', requiredLevel: 1, icon: '🎒', difficulty: 'easy' },
+    { id: 'es_24', title: 'Kosmos', category: 'space', mainCategory: 'words', requiredLevel: 1, icon: '🌌', difficulty: 'hard' },
+    { id: 'es_25', title: 'Sport', category: 'sports', mainCategory: 'words', requiredLevel: 1, icon: '🏀', difficulty: 'normal' },
+    { id: 'es_26', title: 'Ogród', category: 'garden', mainCategory: 'words', requiredLevel: 1, icon: '🌲', difficulty: 'easy' },
+    { id: 'es_27', title: 'Meble', category: 'furniture', mainCategory: 'words', requiredLevel: 1, icon: '🪑', difficulty: 'easy' },
+    { id: 'es_28', title: 'Materiały', category: 'materials', mainCategory: 'words', requiredLevel: 1, icon: '🧱', difficulty: 'normal' },
+    { id: 'es_29', title: 'Kształty', category: 'shapes', mainCategory: 'words', requiredLevel: 1, icon: '⚪', difficulty: 'easy' },
+    { id: 'es_30', title: 'Czas', category: 'time', mainCategory: 'words', requiredLevel: 1, icon: '⏱️', difficulty: 'normal' },
+    { id: 'es_31', title: 'Pojazdy', category: 'vehicles', mainCategory: 'words', requiredLevel: 1, icon: '🚲', difficulty: 'easy' },
 ];
 
 export const TOTAL_QUESTIONS = 12;

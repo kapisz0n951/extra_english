@@ -14,7 +14,7 @@ export interface Word {
 export type ProficiencyLevel = 'zero' | 'intermediate' | 'advanced';
 export type AppLanguage = 'EN' | 'ES';
 export type MainCategory = 'words' | 'phrases' | 'orthography' | 'math' | 'lesson';
-export type GameMode = 'translation' | 'listening' | 'spelling' | 'quiz' | 'mixed';
+export type GameMode = 'translation' | 'listening' | 'spelling' | 'quiz' | 'mixed' | 'reverse' | 'scrambled';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type PlayerRole = 'teacher' | 'student' | 'single';
 
@@ -98,6 +98,14 @@ export interface Chapter {
   icon: string;
   difficulty: Difficulty;
   description?: string;
+  isCustom?: boolean;
+}
+
+export interface CustomCategory {
+  id: string;
+  title: string;
+  icon: string;
+  words: Word[];
 }
 
 export type Subject = 'Angielski' | 'Hiszpański';
