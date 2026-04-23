@@ -26,24 +26,21 @@ const ai = new GoogleGenAI({ apiKey: getApiKey() });
 // Helper to handle AI responses with safety check
 const safeGenerate = async (modelName: string, prompt: string, schema: any) => {
   try {
-    const model = ai.models.get(modelName);
-    const response = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: modelName,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
+      config: {
         responseMimeType: "application/json",
         responseSchema: schema,
         temperature: 0.7,
       }
     });
 
-    if (!response.candidates || response.candidates.length === 0) {
-      throw new Error("AI nie zwróciło żadnych kandydatów (możliwa blokada treści)");
+    if (!response.text) {
+      throw new Error("Pusta odpowiedź od AI");
     }
 
-    const text = response.candidates[0].content.parts[0].text;
-    if (!text) throw new Error("Pusta odpowiedź od AI");
-    
-    return JSON.parse(text);
+    return JSON.parse(response.text);
   } catch (error: any) {
     console.error(`Błąd AI (${modelName}):`, error);
     throw error;
@@ -63,8 +60,8 @@ export const explainMistakes = async (mistakes: Mistake[], subject: Subject): Pr
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
+      model: "gemini-1.5-flash",
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
     return response.text || "Nie udało się wygenerować wyjaśnienia.";
   } catch (error) {
@@ -77,8 +74,8 @@ export const generateWordMnemonic = async (word: string, targetLang: string): Pr
   const prompt = `Stwórz bardzo krótką, zabawną i łatwą do zapamiętania mnemotechnikę (skojarzenie) po polsku dla słowa "${word}" w języku ${targetLang}. Max 10 słów.`;
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
+      model: "gemini-1.5-flash",
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
     return response.text || "";
   } catch (error) { 
@@ -90,20 +87,14 @@ export const generateWordMnemonic = async (word: string, targetLang: string): Pr
 export const generateWordImage = async (word: string): Promise<string | null> => {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: `A clean, minimalist 3D icon illustration of "${word}" on a soft pastel background, professional UI design style, cute and bright.` }],
-      },
-      config: {
-        imageConfig: { aspectRatio: "1:1" }
-      }
+      model: 'gemini-1.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [{ text: `A clean, minimalist description of a 3D icon for "${word}" on a soft pastel background, professional UI design style.` }]
+      }]
     });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
+    // This previously tried image generation which is not supported this way in standard SDK
+    // Returning null for now to avoid crashes, as we focus on fixing the text AI
     return null;
   } catch (error) { 
     console.error("Błąd generateWordImage:", error);
@@ -121,35 +112,27 @@ export const generateEducationalLesson = async (topic: string, proficiency: stri
   2. Listę 12 elementów (słów lub krótkich zdań).
   Zwróć jako JSON.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
+  const schema = {
+    type: Type.OBJECT,
+    properties: {
+      explanation: { type: Type.STRING },
+      words: {
+        type: Type.ARRAY,
+        items: {
           type: Type.OBJECT,
           properties: {
-            explanation: { type: Type.STRING },
-            words: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  pl: { type: Type.STRING },
-                  en: { type: Type.STRING }
-                },
-                required: ["pl", "en"]
-              }
-            }
+            pl: { type: Type.STRING },
+            en: { type: Type.STRING }
           },
-          required: ["explanation", "words"]
+          required: ["pl", "en"]
         }
       }
-    });
+    },
+    required: ["explanation", "words"]
+  };
 
-    // Cast JSON.parse result to any to avoid "unknown" type errors.
-    const data = JSON.parse(response.text || "{}") as any;
+  try {
+    const data = await safeGenerate("gemini-1.5-flash", prompt, schema);
     return {
       explanation: data.explanation || "Brak dodatkowego wyjaśnienia.",
       words: (data.words || []).map((w: any, i: number) => ({ id: `lesson-${Date.now()}-${i}`, pl: w.pl, en: w.en }))
@@ -222,29 +205,26 @@ export const generateCategoryWords = async (categoryName: string, subject: Subje
 };
 
 export const generateMathQuestions = async (categoryName: string): Promise<Word[]> => {
+  const prompt = `Wygeneruj 14 pytań z matematyki na temat: "${categoryName}". 
+  Ma to być prosty tekst pytania (np. "2 + 2 =") i poprawny wynik.
+  Zwróć jako JSON: tablica obiektów z polami "question", "correct", "distractors" (3 błędne odpowiedzi).`;
+
+  const schema = {
+    type: Type.ARRAY,
+    items: {
+      type: Type.OBJECT,
+      properties: {
+        question: { type: Type.STRING },
+        correct: { type: Type.STRING },
+        distractors: { type: Type.ARRAY, items: { type: Type.STRING } }
+      },
+      required: ["question", "correct", "distractors"]
+    }
+  };
+
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: `Wygeneruj 14 pytań z matematyki: "${categoryName}". JSON format.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              question: { type: Type.STRING },
-              correct: { type: Type.STRING },
-              distractors: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ["question", "correct", "distractors"]
-          }
-        }
-      }
-    });
-    // Explicitly cast JSON result to any[] to fix mapping property access on unknown.
-    const questions = JSON.parse(response.text || "[]") as any[];
-    return questions.map((q: any, i: number) => ({
+    const questions = await safeGenerate("gemini-1.5-flash", prompt, schema);
+    return (questions || []).map((q: any, i: number) => ({
       id: `math-${Date.now()}-${i}`,
       pl: q.question,
       en: q.question,
